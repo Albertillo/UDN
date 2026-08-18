@@ -69,6 +69,11 @@ L["InfoPageText_en"] = [[
 |cff80bfffTIP|r  
 |cffffffffYou can switch dungeons using the top menu and navigate sections with the tabs.|r
 ]]
+
+-- PERSONAL NOTES
+L["PersonalNotes"] = "Notas personales"
+L["PersonalNotes_en"] = "Personal Notes"
+
 -- ICON LIST
 
 TANK_ICON = CreateAtlasMarkup("Adventures-Tank", 16, 16, 0 , -5)
@@ -83,6 +88,7 @@ INTERRUPT_ICON = "|TInterface\\Icons\\Ability_Kick:16:16:0:-5|t"
 UsefulDungeonNotesDB = UsefulDungeonNotesDB or {}
 UsefulDungeonNotesDB.minimap = UsefulDungeonNotesDB.minimap or { angle = 45 }
 UsefulDungeonNotesDB.lastDungeon = UsefulDungeonNotesDB.lastDungeon or 585
+UsefulDungeonNotesDB.personalNotes = UsefulDungeonNotesDB.personalNotes or {} --Used to save the personal notes for each tab in each dungeon.
 
 local data = UsefulDungeonNotesData
 
@@ -101,6 +107,19 @@ end
 ---------------------------------------------------------
 -- DETECTAR MAZMORRA
 ---------------------------------------------------------
+local function GetPersonalNote(dungeonID, tab)
+    UsefulDungeonNotesDB.personalNotes[dungeonID] =
+        UsefulDungeonNotesDB.personalNotes[dungeonID] or {}
+
+    return UsefulDungeonNotesDB.personalNotes[dungeonID][tab] or ""
+end
+
+local function SavePersonalNote(dungeonID, tab, text)
+    UsefulDungeonNotesDB.personalNotes[dungeonID] =
+        UsefulDungeonNotesDB.personalNotes[dungeonID] or {}
+
+    UsefulDungeonNotesDB.personalNotes[dungeonID][tab] = text
+end
 
 local function DetectCurrentDungeon()
     local _, instanceType, _, _, _, _, _, mapID = GetInstanceInfo()
@@ -413,10 +432,87 @@ textFont:SetSpacing(6)
 
 function ns.SetText(text)
     textFont:SetText(text)
-    textContainer:SetHeight(textFont:GetStringHeight() + 20)
+    local textHeight =
+        textFont:GetStringHeight()
+    notesTitle:ClearAllPoints()
+    notesTitle:SetPoint(
+        "TOPLEFT",
+        textFont,
+        "BOTTOMLEFT",
+        0,
+        -20
+    )
+    notesEditBox:ClearAllPoints()
+    notesEditBox:SetPoint(
+        "TOPLEFT",
+        notesTitle,
+        "BOTTOMLEFT",
+        0,
+        -10
+    )
+    local totalHeight =
+        textHeight
+        + notesEditBox:GetHeight()
+        + 120
+    textContainer:SetHeight(totalHeight)
     scrollFrame:UpdateScrollChildRect()
 end
 
+---------------------------------------------------------
+-- PERSONAL NOTES
+---------------------------------------------------------
+
+local notesTitle = textContainer:CreateFontString(
+    nil,
+    "OVERLAY",
+    "GameFontHighlight"
+)
+
+local notesHeader
+	if GetLocale() == "esES" or GetLocale() == "esMX" then
+	    notesHeader = L["PersonalNotes"]
+	else
+	    notesHeader = L["PersonalNotes_en"]
+	end
+	notesTitle:SetText("|cff80bfff" .. notesHeader .. "|r")
+
+local notesEditBox = CreateFrame(
+    "EditBox",
+    "UDNPersonalNotesEditBox",
+    textContainer,
+    "InputBoxTemplate"
+)
+
+notesEditBox:SetMultiLine(true)
+notesEditBox:SetAutoFocus(false)
+notesEditBox:SetFontObject(ChatFontNormal)
+
+notesEditBox:SetWidth(420)
+notesEditBox:SetHeight(120)
+
+notesEditBox:SetTextInsets(5,5,5,5)
+
+notesEditBox:SetScript("OnTextChanged", function(self)
+    local id = ns.currentDungeon()
+    local tab = ns.currentTab()
+    SavePersonalNote(
+        id,
+        tab,
+        self:GetText()
+    )
+    local newHeight =
+        math.max(
+            120,
+            self:GetNumLines() * 18
+        )
+    self:SetHeight(newHeight)
+    local totalHeight =
+        textFont:GetStringHeight()
+        + newHeight
+        + 120
+    textContainer:SetHeight(totalHeight)
+    scrollFrame:UpdateScrollChildRect()
+end)
 
 ---------------------------------------------------------
 -- SCROLLBAR MODERNO
@@ -456,9 +552,12 @@ function frame:SelectTab(tab)
 
     local id = ns.currentDungeon()
     local text = BuildText(id, tab)
-
+	
+	notesEditBox:SetText(
+    GetPersonalNote(id, tab)
+	)
     local offset = (frame.tabsHeight or 22)
-
+	
     scrollFrame:ClearAllPoints()
     scrollFrame:SetPoint("TOPLEFT", 20, -(100 + offset))
     scrollFrame:SetPoint("BOTTOMRIGHT", -35, 20)
@@ -466,7 +565,15 @@ function frame:SelectTab(tab)
     textFont:ClearAllPoints()
     textFont:SetPoint("TOPLEFT", 0, -4)
     textFont:SetPoint("TOPRIGHT", 0, -4)
-
+	
+	if tab == "Info" then
+	    notesTitle:Hide()
+	    notesEditBox:Hide()
+	else
+	    notesTitle:Show()
+	    notesEditBox:Show()
+	end
+	
     ns.SetText(text)
     frame:UpdateTabHighlight(tab)
 end
