@@ -432,6 +432,7 @@ textFont:SetSpacing(6)
 
 function ns.SetText(text)
     textFont:SetText(text)
+	textContainer:SetHeight(textFont:GetStringHeight() + 20)
     local textHeight =
         textFont:GetStringHeight()
     notesTitle:ClearAllPoints()
