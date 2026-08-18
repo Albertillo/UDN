@@ -1,0 +1,8 @@
+## Interface: 120100
+## Title: UsefulDungeonNotes
+## Author: Albertillo
+## Version: 1.0
+
+UsefulDungeonNotes_Data.lua
+UsefulDungeonNotes.lua
+
