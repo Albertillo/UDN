@@ -1,5 +1,10 @@
-print("|cff00ff00UsefulDungeonNotes loaded. Use /udn to open the window or press the button on the minimap.|r")
 
+local loc = GetLocale()
+if loc == "esES" or loc == "esMX" then
+	print("|cff00ff00UsefulDungeonNotes cargado. Utiliza /udn para abir la ventana o pulsa el botón en el minimapa.|r")
+else
+	print("|cff00ff00UsefulDungeonNotes loaded. Use /udn to open the window or press the button on the minimap.|r")
+end
 ---------------------------------------------------------
 -- NAMESPACE
 ---------------------------------------------------------
@@ -85,16 +90,18 @@ INTERRUPT_ICON = "|TInterface\\Icons\\Ability_Kick:16:16:0:-5|t"
 -- VARIABLES PRINCIPALES
 ---------------------------------------------------------
 
-UsefulDungeonNotesDB = UsefulDungeonNotesDB or {}
-UsefulDungeonNotesDB.minimap = UsefulDungeonNotesDB.minimap or { angle = 45 }
-UsefulDungeonNotesDB.lastDungeon = UsefulDungeonNotesDB.lastDungeon or 585
-UsefulDungeonNotesDB.personalNotes = UsefulDungeonNotesDB.personalNotes or {} --Used to save the personal notes for each tab in each dungeon.
-
-local data = UsefulDungeonNotesData
-
 UsefulDungeonNotesEnabledDungeons = {
     2813,2859,2825,2923,2993,2521,1877,1762
 }
+
+UsefulDungeonNotesDB = UsefulDungeonNotesDB or {}
+UsefulDungeonNotesDB.minimap = UsefulDungeonNotesDB.minimap or { angle = 45 }
+UsefulDungeonNotesDB.lastDungeon = UsefulDungeonNotesDB.lastDungeon or UsefulDungeonNotesEnabledDungeons[0]
+
+UsefulDungeonNotesCharDB = UsefulDungeonNotesCharDB or {}
+UsefulDungeonNotesCharDB.personalNotes = UsefulDungeonNotesCharDB.personalNotes or {} --Used to save the personal notes for each tab in each dungeon.
+
+local data = UsefulDungeonNotesData
 
 function UsefulDungeonNotes_GetEnabledDungeons()
     local list = {}
@@ -108,17 +115,17 @@ end
 -- DETECTAR MAZMORRA
 ---------------------------------------------------------
 local function GetPersonalNote(dungeonID, tab)
-    UsefulDungeonNotesDB.personalNotes[dungeonID] =
-        UsefulDungeonNotesDB.personalNotes[dungeonID] or {}
+    UsefulDungeonNotesCharDB.personalNotes[dungeonID] =
+        UsefulDungeonNotesCharDB.personalNotes[dungeonID] or {}
 
-    return UsefulDungeonNotesDB.personalNotes[dungeonID][tab] or ""
+    return UsefulDungeonNotesCharDB.personalNotes[dungeonID][tab] or ""
 end
 
 local function SavePersonalNote(dungeonID, tab, text)
-    UsefulDungeonNotesDB.personalNotes[dungeonID] =
-        UsefulDungeonNotesDB.personalNotes[dungeonID] or {}
+    UsefulDungeonNotesCharDB.personalNotes[dungeonID] =
+        UsefulDungeonNotesCharDB.personalNotes[dungeonID] or {}
 
-    UsefulDungeonNotesDB.personalNotes[dungeonID][tab] = text
+    UsefulDungeonNotesCharDB.personalNotes[dungeonID][tab] = text
 end
 
 local function DetectCurrentDungeon()
@@ -430,90 +437,165 @@ textFont:SetJustifyH("LEFT")
 textFont:SetFont("Fonts\\FRIZQT__.TTF", 14)
 textFont:SetSpacing(6)
 
-function ns.SetText(text)
-    textFont:SetText(text)
-	textContainer:SetHeight(textFont:GetStringHeight() + 20)
-    local textHeight =
-        textFont:GetStringHeight()
-    notesTitle:ClearAllPoints()
-    notesTitle:SetPoint(
-        "TOPLEFT",
-        textFont,
-        "BOTTOMLEFT",
-        0,
-        -20
-    )
-    notesEditBox:ClearAllPoints()
-    notesEditBox:SetPoint(
-        "TOPLEFT",
-        notesTitle,
-        "BOTTOMLEFT",
-        0,
-        -10
-    )
-    local totalHeight =
-        textHeight
-        + notesEditBox:GetHeight()
-        + 120
-    textContainer:SetHeight(totalHeight)
-    scrollFrame:UpdateScrollChildRect()
-end
-
 ---------------------------------------------------------
 -- PERSONAL NOTES
 ---------------------------------------------------------
 
-local notesTitle = textContainer:CreateFontString(
-    nil,
-    "OVERLAY",
-    "GameFontHighlight"
-)
+-- FIX: Reduced icons to 14px so they don't expand the line height and break the cursor!
+local ED_TANK_ICON = CreateAtlasMarkup("Adventures-Tank", 12, 12, 0, -3)
+local ED_HEALER_ICON = CreateAtlasMarkup("Adventures-Healer", 12, 12, 0, -3)
+local ED_DPS_ICON = CreateAtlasMarkup("Adventures-DPS", 12, 12, 0, -3)
+local ED_INTERRUPT_ICON = "|TInterface\\Icons\\Ability_Kick:12:12:0:-3|t"
+
+local notesTitle = textContainer:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 
 local notesHeader
-	if GetLocale() == "esES" or GetLocale() == "esMX" then
-	    notesHeader = L["PersonalNotes"]
-	else
-	    notesHeader = L["PersonalNotes_en"]
-	end
-	notesTitle:SetText("|cff80bfff" .. notesHeader .. "|r")
+if GetLocale() == "esES" or GetLocale() == "esMX" then
+    notesHeader = L["PersonalNotes"]
+else
+    notesHeader = L["PersonalNotes_en"]
+end
+notesTitle:SetText("|cff80bfff" .. notesHeader .. "|r")
 
-local notesEditBox = CreateFrame(
-    "EditBox",
-    "UDNPersonalNotesEditBox",
-    textContainer,
-    "InputBoxTemplate"
-)
+local notesBG = CreateFrame("Frame", nil, textContainer, "BackdropTemplate")
+notesBG:SetSize(420, 30)
+notesBG:SetBackdrop({
+    bgFile = "Interface\\Buttons\\WHITE8x8",
+    edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+    edgeSize = 12,
+})
+notesBG:SetBackdropColor(0.05,0.05,0.05,0.9)
+notesBG:SetBackdropBorderColor(0.2,0.6,1,1)
 
+local notesEditBox = CreateFrame("EditBox", "UDNPersonalNotesEditBox", notesBG, "BackdropTemplate")
 notesEditBox:SetMultiLine(true)
 notesEditBox:SetAutoFocus(false)
-notesEditBox:SetFontObject(ChatFontNormal)
+notesEditBox:SetFont("Fonts\\FRIZQT__.TTF", 14, "") 
+notesEditBox:SetJustifyH("LEFT")
+notesEditBox:SetJustifyV("TOP")
+-- FIX: Add a little spacing between lines to help the cursor align properly
+notesEditBox:SetSpacing(4) 
 
-notesEditBox:SetWidth(420)
-notesEditBox:SetHeight(120)
+-- Anchor to all 4 corners with 5px padding
+notesEditBox:ClearAllPoints()
+notesEditBox:SetPoint("TOPLEFT", notesBG, "TOPLEFT", 5, -5)
+notesEditBox:SetPoint("TOPRIGHT", notesBG, "TOPRIGHT", -5, -5)
+notesEditBox:SetPoint("BOTTOMLEFT", notesBG, "BOTTOMLEFT", 5, 5)
+notesEditBox:SetPoint("BOTTOMRIGHT", notesBG, "BOTTOMRIGHT", -5, 5)
+-- FIX: Y insets must be 0 so they don't desync the cursor!
+notesEditBox:SetTextInsets(5, 5, 0, 0)
 
-notesEditBox:SetTextInsets(5,5,5,5)
+---------------------------------------------------------
+-- ICON INSERT BUTTONS (TEXTURE BASED)
+---------------------------------------------------------
 
-notesEditBox:SetScript("OnTextChanged", function(self)
-    local id = ns.currentDungeon()
-    local tab = ns.currentTab()
-    SavePersonalNote(
-        id,
-        tab,
-        self:GetText()
-    )
-    local newHeight =
-        math.max(
-            120,
-            self:GetNumLines() * 18
-        )
-    self:SetHeight(newHeight)
-    local totalHeight =
-        textFont:GetStringHeight()
-        + newHeight
-        + 120
+local buttonContainer = CreateFrame("Frame", nil, textContainer)
+buttonContainer:SetSize(120, 24)
+buttonContainer:SetPoint("LEFT", notesTitle, "RIGHT", 10, -3)
+
+local function CreateIconInsertButton(markup, atlas, texture, tooltipEN, tooltipES, anchorFrame)
+    local btn = CreateFrame("Button", nil, buttonContainer)
+    btn:SetSize(20, 20)
+    
+    if anchorFrame then
+        btn:SetPoint("LEFT", anchorFrame, "RIGHT", 5, 0)
+    else
+        btn:SetPoint("LEFT", buttonContainer, "LEFT", 0, 0)
+    end
+
+    -- Buttons remain 16px so they look good on the UI
+    btn.icon = btn:CreateTexture(nil, "ARTWORK")
+    if atlas then
+        btn.icon:SetAtlas(atlas)
+    else
+        btn.icon:SetTexture(texture)
+    end
+    btn.icon:SetSize(16, 16)
+    btn.icon:SetPoint("CENTER")
+
+    local loc = GetLocale()
+    local finalTooltip = (loc == "esES" or loc == "esMX") and tooltipES or tooltipEN
+
+    btn:SetScript("OnEnter", function()
+        GameTooltip:SetOwner(btn, "ANCHOR_TOP")
+        GameTooltip:SetText(finalTooltip, 1, 1, 1, 1, true)
+    end)
+    btn:SetScript("OnLeave", function()
+        GameTooltip:Hide()
+    end)
+
+    btn:SetScript("OnClick", function()
+        notesEditBox:Insert(markup)
+        notesEditBox:SetFocus()
+    end)
+
+    return btn
+end
+
+local tankBtn = CreateIconInsertButton(ED_TANK_ICON, "Adventures-Tank", nil, "Tank Icon", "Icono de Tanque")
+local healerBtn = CreateIconInsertButton(ED_HEALER_ICON, "Adventures-Healer", nil, "Healer Icon", "Icono de Healer", tankBtn)
+local dpsBtn = CreateIconInsertButton(ED_DPS_ICON, "Adventures-DPS", nil, "DPS Icon", "Icono de DPS", healerBtn)
+local interruptBtn = CreateIconInsertButton(ED_INTERRUPT_ICON, nil, "Interface\\Icons\\Ability_Kick", "Interrupt Icon", "Icono de Interrupción", dpsBtn)
+
+---------------------------------------------------------
+-- MEASURING & LAYOUT LOGIC
+---------------------------------------------------------
+
+local notesMeasure = textContainer:CreateFontString(nil, "ARTWORK", "ChatFontNormal")
+notesMeasure:Hide()
+notesMeasure:SetPoint("TOPLEFT", 5, 0)
+notesMeasure:SetPoint("TOPRIGHT", -5, 0)
+notesMeasure:SetJustifyH("LEFT")
+notesMeasure:SetJustifyV("TOP")
+-- FIX: Match the spacing of the EditBox!
+notesMeasure:SetSpacing(4) 
+notesMeasure:SetWidth(410)
+notesMeasure:SetFont("Fonts\\FRIZQT__.TTF", 14, "") 
+
+local function UpdateLayout()
+    local textHeight = textFont:GetStringHeight()
+    local titleHeight = notesTitle:IsShown() and notesTitle:GetStringHeight() or 0
+    local notesHeight = notesBG:IsShown() and notesBG:GetHeight() or 0
+    
+    local totalHeight = textHeight + 4 + 20 + titleHeight + 10 + notesHeight + 20
     textContainer:SetHeight(totalHeight)
     scrollFrame:UpdateScrollChildRect()
+end
+
+notesEditBox:SetScript("OnTextChanged", function(self, isUserInput)
+    if isUserInput then
+        local id = ns.currentDungeon()
+        local tab = ns.currentTab()
+        SavePersonalNote(id, tab, self:GetText())
+    end
+
+    local measureText = self:GetText()
+    if measureText:sub(-1) == "\n" then
+        measureText = measureText .. " "
+    end
+    
+    notesMeasure:SetText(measureText)
+    local textHeight = notesMeasure:GetStringHeight()
+    
+    -- 10px added for top/bottom padding (5px each)
+    local newHeight = math.max(30, textHeight + 10)
+    notesBG:SetHeight(newHeight)
+    
+    UpdateLayout()
 end)
+
+function ns.SetText(text)
+    textFont:SetText(text)
+    
+    notesTitle:ClearAllPoints()
+    notesTitle:SetPoint("TOPLEFT", textFont, "BOTTOMLEFT", 0, -20)
+    
+    notesBG:ClearAllPoints()
+    notesBG:SetPoint("TOPLEFT", notesTitle, "BOTTOMLEFT", 0, -10)
+    notesBG:SetWidth(420)
+    
+    UpdateLayout()
+end
 
 ---------------------------------------------------------
 -- SCROLLBAR MODERNO
@@ -570,9 +652,11 @@ function frame:SelectTab(tab)
 	if tab == "Info" then
 	    notesTitle:Hide()
 	    notesEditBox:Hide()
+		notesBG:Hide()
 	else
 	    notesTitle:Show()
 	    notesEditBox:Show()
+		notesBG:Show()
 	end
 	
     ns.SetText(text)
